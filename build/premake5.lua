@@ -170,6 +170,7 @@ if (downloadRaylib) then
 
     project (workspaceName)
         kind "ConsoleApp"
+        warnings "Extra"
         location "../"
         targetdir "../bin/%{cfg.buildcfg}"
 
