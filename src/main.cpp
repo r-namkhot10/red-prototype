@@ -24,6 +24,10 @@ struct Vec2
         return { x * k, y * k };
     }
 
+    Vec2 operator/(float k) const {
+        return { x / k, y / k };
+    }
+
     float length() const {
         return std::sqrt(x * x + y * y);
     }
@@ -60,6 +64,7 @@ int main()
     InitWindow(SCREEN_W, SCREEN_H, "red");
     SetTargetFPS(60);
 
+    Vec2 facingDir(0.0f, 1.0f);
     Vec2 playerPos(WORLD_W / 2.0f, WORLD_H / 2.0f);
     float speedPlayer = 300.0f;
 	float DashSpeed = 600.0f;
@@ -67,7 +72,7 @@ int main()
     Camera2D camera = {};
     camera.offset = Vector2{ SCREEN_W / 2.0f, SCREEN_H / 2.0f };
     camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
+    camera.zoom = 1.5f;
 
     float timer = 0.0f;
 	float NTimer = 0.0f;
@@ -109,23 +114,11 @@ int main()
 			BLOCKING,
 			DODGING
 		};
-    
-    	enum class PlayerDirection {
-    		UP,
-    		UP_RIGHT,
-    		UP_LEFT,
-    		DOWN,
-    		DOWN_RIGHT,
-    		DOWN_LEFT,
-    		LEFT,
-    		RIGHT
-    	};
 
 	};
 
 	Red::AttackState ATKState = Red::AttackState::IDLE;
 	Red::DefenseState DEFState = Red::DefenseState::BLOCKING;
-    Red::PlayerDirection playerDir = Red::PlayerDirection::DOWN;
 
     NotificationTimer notificationTimer = NotificationTimer::IDLE;
     GameState state = GameState::WAIT_FOR_START;
@@ -137,7 +130,7 @@ int main()
         DrawText("Welcome to the Red Prototype Game!\n"
 			"????????.\n" //-----
             "***How to Play***\n"
-            "Controls: w = up, a = left, s = down, d = right, q = quit\n" //-----
+            "Controls: ???\n" //-----
             "Player starts at the center of the world.\n", 40, 120, 20, BLACK);
         DrawText("Press Enter to start...", 40, 300, 20, BLACK);
         EndDrawing();
@@ -160,30 +153,10 @@ int main()
                 dir = dir.normalize();
                 playerPos = playerPos + dir * speedPlayer * dt;
 
-		    	if (dir.x > 0) {
-		    		playerDir = Red::PlayerDirection::RIGHT;
-		    	}
-		    	if (dir.x < 0) {
-		    		playerDir = Red::PlayerDirection::LEFT;
-		    	}
-		    	if (dir.y > 0) {
-		    		playerDir = Red::PlayerDirection::DOWN;
-		    	}
-		    	if (dir.y < 0) {
-		    		playerDir = Red::PlayerDirection::UP;
-		    	}
-		    	if (dir.x > 0 && dir.y < 0) {
-		    		playerDir = Red::PlayerDirection::UP_RIGHT;
-		    	}
-		    	if (dir.x < 0 && dir.y < 0) {
-		    		playerDir = Red::PlayerDirection::UP_LEFT;
-		    	}
-		    	if (dir.x > 0 && dir.y > 0) {
-		    		playerDir = Red::PlayerDirection::DOWN_RIGHT;
-		    	}
-		    	if (dir.x < 0 && dir.y > 0) {
-		    		playerDir = Red::PlayerDirection::DOWN_LEFT;
-		    	}
+				if (dir.length() > 0.0f) {
+					facingDir = dir;
+				}
+
 			}
 
             if (IsKeyPressed(KEY_J) && ATKState == Red::AttackState::IDLE && DTimer >= WindupTime + ActiveTime + RecoveryTime) {
@@ -238,6 +211,7 @@ int main()
  
         camera.target = Vector2{ playerPos.x, playerPos.y };
         
+		Vec2 playerEndPos = playerPos + facingDir * PLAYER_SIZE / 2.0f;
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -245,6 +219,7 @@ int main()
             BeginMode2D(camera);
             DrawRectangleLinesEx(Rectangle{ 0.0f, 0.0f, (float)WORLD_W, (float)WORLD_H}, (float)WORLD_THICK, DARKGRAY);
             DrawRectangle((int)playerPos.x - PLAYER_SIZE / 2.0f, (int)playerPos.y - PLAYER_SIZE / 2.0f, PLAYER_SIZE, PLAYER_SIZE, RED);
+			DrawLineEx(Vector2{playerPos.x, playerPos.y}, Vector2{playerEndPos.x, playerEndPos.y}, (PLAYER_SIZE / 10.0f), BLACK);
             EndMode2D();
         }
 
