@@ -83,6 +83,10 @@ int main()
 	float RecoveryTime = 0.30f;
 	float CancelTimeFrame = 0.3f;
 
+	float speedP_Windup = speedPlayer * 0.3f;
+	float speedP_Active = 0.0f;
+	float speedP_Recovery = speedPlayer * 0.5f;
+
 	float DTimer = WindupTime + ActiveTime + RecoveryTime;
 
 	enum class NotificationTimer {
@@ -139,30 +143,41 @@ int main()
     while (!WindowShouldClose())
     {
         float dt = GetFrameTime();
+        float speedPT = speedPlayer;
 
         if (state == GameState::PLAYING) {
             timer += dt;
 
+			if (ATKState == Red::AttackState::WINDUP) {
+				speedPT = speedP_Windup;
+			}
+			else if (ATKState == Red::AttackState::ACTIVE) {
+				speedPT = speedP_Active;
+			}
+			else if (ATKState == Red::AttackState::RECOVERY) {
+				speedPT = speedP_Recovery;
+			}
+
             Vec2 dir(0.0f, 0.0f);
-            if (ATKState == Red::AttackState::IDLE) {
+
                 if (IsKeyDown(KEY_D)) dir.x += 1.0f;
                 if (IsKeyDown(KEY_A)) dir.x -= 1.0f;
                 if (IsKeyDown(KEY_S)) dir.y += 1.0f;
                 if (IsKeyDown(KEY_W)) dir.y -= 1.0f;
 
                 dir = dir.normalize();
-                playerPos = playerPos + dir * speedPlayer * dt;
+                playerPos = playerPos + dir * speedPT * dt;
 
+            if (ATKState == Red::AttackState::IDLE) {
 				if (dir.length() > 0.0f) {
 					facingDir = dir;
 				}
-
 			}
 
             if (IsKeyPressed(KEY_J) && ATKState == Red::AttackState::IDLE && DTimer >= WindupTime + ActiveTime + RecoveryTime) {
                 ATKState = Red::AttackState::WINDUP;
                 ATKTimer = 0.0f;
-				DTimer = 0.0f;
+                DTimer = 0.0f;
             }
 
             if (DTimer < WindupTime + ActiveTime + RecoveryTime) {
@@ -175,7 +190,6 @@ int main()
                 if (IsKeyPressed(KEY_SPACE) && DTimer <= CancelTimeFrame) {
 					ATKState = Red::AttackState::IDLE;
                     ATKTimer = 0.0f;
-                    
                 }
 				else if (ATKState == Red::AttackState::WINDUP) {
 					if (ATKTimer >= WindupTime) {
