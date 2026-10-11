@@ -42,6 +42,10 @@ struct Vec2
     float distanceTo(const Vec2& other) const {
         return (*this - other).length();
     }
+
+	float dot(const Vec2& other) const {
+		return x * other.x + y * other.y;
+	}
 };
 
 void clampPosition(float world_W, float world_H, float player_SIZE, float world_thick, float enemy_SIZE, Vec2& enemyPos, Vec2& playerPos) {
@@ -79,6 +83,8 @@ int main()
     Vec2 playerPos(WORLD_W / 2.0f, WORLD_H / 2.0f);
     float speedPlayer = 300.0f;
 	float DashSpeed = 600.0f;
+	float attackReach = 80.0f;
+	float attackHalfAngle = 50.0f;
 
     Camera2D camera = {};
     camera.offset = Vector2{ SCREEN_W / 2.0f, SCREEN_H / 2.0f };
@@ -241,10 +247,20 @@ int main()
         if (IsKeyDown(KEY_Q)) break;
 
         clampPosition(WORLD_W , WORLD_H , PLAYER_SIZE, WORLD_THICK, ENEMY_SIZE, enemy1.position, playerPos);
+
+        Vec2 DirToEnemy = (enemy1.position - playerPos);
+		float distanceToEnemy = DirToEnemy.length() - (ENEMY_SIZE / 2.0f);
+		bool isEnemyInRange = distanceToEnemy <= attackReach;
+        bool isEnemyInFront = facingDir.dot(DirToEnemy.normalize()) > cos(attackHalfAngle * DEG2RAD);
+		bool isEnemyAttackable = isEnemyInRange && isEnemyInFront;
  
         camera.target = Vector2{ playerPos.x, playerPos.y };
         
 		Vec2 playerEndPos = playerPos + facingDir * PLAYER_SIZE / 2.0f;
+		Color EnemyColor = PURPLE;
+		if (ATKState == Red::AttackState::ACTIVE && isEnemyAttackable) {
+            EnemyColor = GREEN;
+		}
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -255,7 +271,7 @@ int main()
             DrawRectangle((int)playerPos.x - PLAYER_SIZE / 2.0f, (int)playerPos.y - PLAYER_SIZE / 2.0f, PLAYER_SIZE, PLAYER_SIZE, RED);
 			DrawLineEx(Vector2{playerPos.x, playerPos.y}, Vector2{playerEndPos.x, playerEndPos.y}, (PLAYER_SIZE / 10.0f), BLACK);
 
-			DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, PURPLE);
+            DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, EnemyColor);
 			DrawText((std::string("HP: ") + std::to_string(enemy1.health)).c_str(), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
 
             EndMode2D();
