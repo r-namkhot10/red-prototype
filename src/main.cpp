@@ -44,11 +44,22 @@ struct Vec2
     }
 };
 
-void clampPosition(float world_W, float world_H, float TARGET_SIZE, float world_thick, Vec2& position) {
-    if (position.x < world_thick + TARGET_SIZE / 2.0f) position.x = world_thick + TARGET_SIZE / 2.0f;
-    if (position.y < world_thick + TARGET_SIZE / 2.0f) position.y = world_thick + TARGET_SIZE / 2.0f;
-    if (position.x > world_W - world_thick - TARGET_SIZE / 2.0f) position.x = world_W - world_thick - TARGET_SIZE / 2.0f;
-    if (position.y > world_H - world_thick - TARGET_SIZE / 2.0f) position.y = world_H - world_thick - TARGET_SIZE / 2.0f;
+void clampPosition(float world_W, float world_H, float player_SIZE, float world_thick, float enemy_SIZE, Vec2& enemyPos, Vec2& playerPos) {
+    if (playerPos.x < world_thick + player_SIZE / 2.0f) playerPos.x = world_thick + player_SIZE / 2.0f;
+    if (playerPos.y < world_thick + player_SIZE / 2.0f) playerPos.y = world_thick + player_SIZE / 2.0f;
+    if (playerPos.x > world_W - world_thick - player_SIZE / 2.0f) playerPos.x = world_W - world_thick - player_SIZE / 2.0f;
+    if (playerPos.y > world_H - world_thick - player_SIZE / 2.0f) playerPos.y = world_H - world_thick - player_SIZE / 2.0f;
+
+    if (enemyPos.x < world_thick + enemy_SIZE / 2.0f) enemyPos.x = world_thick + enemy_SIZE / 2.0f;
+    if (enemyPos.y < world_thick + enemy_SIZE / 2.0f) enemyPos.y = world_thick + enemy_SIZE / 2.0f;
+    if (enemyPos.x > world_W - world_thick - enemy_SIZE / 2.0f) enemyPos.x = world_W - world_thick - enemy_SIZE / 2.0f;
+    if (enemyPos.y > world_H - world_thick - enemy_SIZE / 2.0f) enemyPos.y = world_H - world_thick - enemy_SIZE / 2.0f;
+
+	if (playerPos.distanceTo(enemyPos) < (player_SIZE / 2.0f + enemy_SIZE / 2.0f)) {
+		Vec2 dir = (playerPos - enemyPos).normalize();
+		float overlap = (player_SIZE / 2.0f + enemy_SIZE / 2.0f) - playerPos.distanceTo(enemyPos);
+		playerPos = playerPos + dir * overlap;
+	}
 }
 
 int main()
@@ -120,6 +131,14 @@ int main()
 		};
 
 	};
+
+	struct Enemy {
+		Vec2 position;
+		float speed;
+		int health;
+	};
+
+	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), 0.0f, 60 };
 
 	Red::AttackState ATKState = Red::AttackState::IDLE;
 	Red::DefenseState DEFState = Red::DefenseState::BLOCKING;
@@ -221,7 +240,7 @@ int main()
 
         if (IsKeyDown(KEY_Q)) break;
 
-        clampPosition(WORLD_W , WORLD_H , PLAYER_SIZE, WORLD_THICK, playerPos);
+        clampPosition(WORLD_W , WORLD_H , PLAYER_SIZE, WORLD_THICK, ENEMY_SIZE, enemy1.position, playerPos);
  
         camera.target = Vector2{ playerPos.x, playerPos.y };
         
@@ -232,8 +251,13 @@ int main()
         if (state == GameState::PLAYING) {
             BeginMode2D(camera);
             DrawRectangleLinesEx(Rectangle{ 0.0f, 0.0f, (float)WORLD_W, (float)WORLD_H}, (float)WORLD_THICK, DARKGRAY);
+
             DrawRectangle((int)playerPos.x - PLAYER_SIZE / 2.0f, (int)playerPos.y - PLAYER_SIZE / 2.0f, PLAYER_SIZE, PLAYER_SIZE, RED);
 			DrawLineEx(Vector2{playerPos.x, playerPos.y}, Vector2{playerEndPos.x, playerEndPos.y}, (PLAYER_SIZE / 10.0f), BLACK);
+
+			DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, PURPLE);
+			DrawText((std::string("HP: ") + std::to_string(enemy1.health)).c_str(), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
+
             EndMode2D();
         }
 
