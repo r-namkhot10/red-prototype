@@ -48,6 +48,15 @@ struct Vec2
 	}
 };
 
+Vec2 facingDir (Vec2& direction, Vec2& position, float speed, float dt, Vec2& facingdir) {
+    direction = direction.normalize();
+    position = position + direction * speed * dt;
+    if (direction.length() > 0.0f) {
+        facingdir = direction;
+    }
+    return facingdir;
+}
+
 void clampPosition(float world_W, float world_H, float target_SIZE, float world_thick, Vec2& targetPos) {
     if (targetPos.x < world_thick + target_SIZE / 2.0f) targetPos.x = world_thick + target_SIZE / 2.0f;
     if (targetPos.y < world_thick + target_SIZE / 2.0f) targetPos.y = world_thick + target_SIZE / 2.0f;
@@ -63,6 +72,7 @@ void clampOverlapPosition(float player_SIZE, float enemy_SIZE, Vec2& playerPos, 
     }
 }
 
+
 int main()
 {
     const int SCREEN_W = 1500;
@@ -76,7 +86,7 @@ int main()
     InitWindow(SCREEN_W, SCREEN_H, "red");
     SetTargetFPS(60);
 
-    Vec2 facingDir(0.0f, 1.0f);
+    Vec2 playerfacingDir(0.0f, 1.0f);
     Vec2 playerPos(WORLD_W / 2.0f, WORLD_H / 2.0f);
     float speedPlayer = 300.0f;
 	float DashSpeed = 600.0f;
@@ -140,11 +150,13 @@ int main()
 
 	struct Enemy {
 		Vec2 position;
+		Vec2 facingdir;
+		Vec2 direction;
 		float speed;
 		float health;
 	};
 
-	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), 0.0f, 60 };
+	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 0.0f), 120.0f, 60 };
 
 	Red::AttackState ATKState = Red::AttackState::IDLE;
 	Red::DefenseState DEFState = Red::DefenseState::BLOCKING;
@@ -195,9 +207,11 @@ int main()
 
             if (ATKState == Red::AttackState::IDLE) {
 				if (dir.length() > 0.0f) {
-					facingDir = dir;
+					playerfacingDir = dir;
 				}
 			}
+
+            facingDir(enemy1.direction, enemy1.position, enemy1.speed, dt, enemy1.facingdir);
 
             if (IsKeyPressed(KEY_J) && ATKState == Red::AttackState::IDLE && DTimer >= WindupTime + ActiveTime + RecoveryTime) {
                 ATKState = Red::AttackState::WINDUP;
@@ -257,7 +271,7 @@ int main()
         Vec2 DirToEnemy = (enemy1.position - playerPos);
 		float distanceToEnemy = DirToEnemy.length() - (ENEMY_SIZE / 2.0f);
 		bool isEnemyInRange = distanceToEnemy <= attackReach;
-        bool isEnemyInFront = facingDir.dot(DirToEnemy.normalize()) > cos(attackHalfAngle * DEG2RAD);
+        bool isEnemyInFront = playerfacingDir.dot(DirToEnemy.normalize()) > cos(attackHalfAngle * DEG2RAD);
 		bool isEnemyAttackable = isEnemyInRange && isEnemyInFront;
 
 		if (ATKState == Red::AttackState::ACTIVE && isEnemyAttackable && !AttackedEnemy && enemy1.health > 0) {
@@ -267,7 +281,8 @@ int main()
 
         camera.target = Vector2{ playerPos.x, playerPos.y };
         
-		Vec2 playerEndPos = playerPos + facingDir * PLAYER_SIZE / 2.0f;
+		Vec2 playerEndPos = playerPos + playerfacingDir * PLAYER_SIZE / 2.0f;
+		Vec2 enemy1EndPos = enemy1.position + enemy1.facingdir * ENEMY_SIZE / 2.0f;
 		Color EnemyColor = PURPLE;
 		if (ATKState == Red::AttackState::ACTIVE && isEnemyAttackable) {
             EnemyColor = GREEN;
@@ -284,6 +299,7 @@ int main()
 
             if (enemy1.health > 0) {
                 DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, EnemyColor);
+				DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1EndPos.x, enemy1EndPos.y }, (ENEMY_SIZE / 10.0f), BLACK);
                 DrawText(TextFormat("HP: %.0f", enemy1.health), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
             }
 
