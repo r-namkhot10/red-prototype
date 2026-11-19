@@ -46,6 +46,14 @@ struct Vec2
 	float dot(const Vec2& other) const {
 		return x * other.x + y * other.y;
 	}
+
+    Vec2 vecRotation(float angle) const {
+        float rad = angle * DEG2RAD;
+        float cosA = cos(rad);
+        float sinA = sin(rad);
+        return Vec2(x * cosA - y * sinA, x * sinA + y * cosA);
+    }
+
 };
 
 Vec2 facingDir (Vec2& direction, Vec2& position, float speed, float dt, Vec2& facingdir) {
@@ -72,6 +80,9 @@ void clampOverlapPosition(float player_SIZE, float enemy_SIZE, Vec2& playerPos, 
     }
 }
 
+void testRotation(Vec2& facingdir, float rotation) { //temporary use
+	facingdir = facingdir.vecRotation(rotation);
+}
 
 int main()
 {
@@ -205,6 +216,13 @@ int main()
                 dir = dir.normalize();
                 playerPos = playerPos + dir * speedPT * dt;
 
+				if (IsKeyPressed(KEY_Z)) { //temporary use
+					testRotation(enemy1.facingdir, 90);
+				}
+				if (IsKeyPressed(KEY_X)) { //temporary use
+                    testRotation(enemy1.facingdir, -90);
+                }
+
             if (ATKState == Red::AttackState::IDLE) {
 				if (dir.length() > 0.0f) {
 					playerfacingDir = dir;
@@ -301,6 +319,7 @@ int main()
                 DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, EnemyColor);
 				DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1EndPos.x, enemy1EndPos.y }, (ENEMY_SIZE / 10.0f), BLACK);
                 DrawText(TextFormat("HP: %.0f", enemy1.health), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
+                DrawText(TextFormat("( %.2f, %.2f )", enemy1.facingdir.x, enemy1.facingdir.y), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 40, 20, BLACK);
             }
 
             EndMode2D();
