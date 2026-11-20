@@ -165,9 +165,10 @@ int main()
 		Vec2 direction;
 		float speed;
 		float health;
+		float Viewingdistance;
 	};
 
-	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 0.0f), 120.0f, 60 };
+	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 0.0f), 120.0f, 60, 330.0f };
 
 	Red::AttackState ATKState = Red::AttackState::IDLE;
 	Red::DefenseState DEFState = Red::DefenseState::BLOCKING;
@@ -298,9 +299,15 @@ int main()
 		}
 
         camera.target = Vector2{ playerPos.x, playerPos.y };
-        
+
 		Vec2 playerEndPos = playerPos + playerfacingDir * PLAYER_SIZE / 2.0f;
 		Vec2 enemy1EndPos = enemy1.position + enemy1.facingdir * ENEMY_SIZE / 2.0f;
+        Vec2 enemy1VisionEndPos = enemy1.position + enemy1.facingdir.vecRotation(60) * enemy1.Viewingdistance;
+        Vec2 enemy1VisionEndPos2 = enemy1.position + enemy1.facingdir.vecRotation(-60) * enemy1.Viewingdistance;
+
+		float checkVisionDistance = enemy1VisionEndPos.distanceTo(enemy1.position);
+		float checkVisionDistance2 = enemy1VisionEndPos2.distanceTo(enemy1.position);
+
 		Color EnemyColor = PURPLE;
 		if (ATKState == Red::AttackState::ACTIVE && isEnemyAttackable) {
             EnemyColor = GREEN;
@@ -312,15 +319,20 @@ int main()
             BeginMode2D(camera);
             DrawRectangleLinesEx(Rectangle{ 0.0f, 0.0f, (float)WORLD_W, (float)WORLD_H}, (float)WORLD_THICK, DARKGRAY);
 
-            DrawRectangle((int)playerPos.x - PLAYER_SIZE / 2.0f, (int)playerPos.y - PLAYER_SIZE / 2.0f, PLAYER_SIZE, PLAYER_SIZE, RED);
-			DrawLineEx(Vector2{playerPos.x, playerPos.y}, Vector2{playerEndPos.x, playerEndPos.y}, (PLAYER_SIZE / 10.0f), BLACK);
 
             if (enemy1.health > 0) {
                 DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, EnemyColor);
+                DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1VisionEndPos.x, enemy1VisionEndPos.y }, (ENEMY_SIZE / 30.0f), GRAY);
+				DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1VisionEndPos2.x, enemy1VisionEndPos2.y }, (ENEMY_SIZE / 30.0f), GRAY);
 				DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1EndPos.x, enemy1EndPos.y }, (ENEMY_SIZE / 10.0f), BLACK);
+
                 DrawText(TextFormat("HP: %.0f", enemy1.health), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
                 DrawText(TextFormat("( %.2f, %.2f )", enemy1.facingdir.x, enemy1.facingdir.y), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 40, 20, BLACK);
+                DrawText(TextFormat("Vision Dist: %.2f, %.2f", checkVisionDistance, checkVisionDistance2), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 60, 20, BLACK);
             }
+
+            DrawRectangle((int)playerPos.x - PLAYER_SIZE / 2.0f, (int)playerPos.y - PLAYER_SIZE / 2.0f, PLAYER_SIZE, PLAYER_SIZE, RED);
+			DrawLineEx(Vector2{playerPos.x, playerPos.y}, Vector2{playerEndPos.x, playerEndPos.y}, (PLAYER_SIZE / 10.0f), BLACK);
 
             EndMode2D();
         }
