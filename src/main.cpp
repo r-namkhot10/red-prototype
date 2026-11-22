@@ -7,7 +7,7 @@
 #include "resource_dir.h"
 
 struct Vec2
-{
+{   
     float x, y;
 
     Vec2(float x, float y) : x(x), y(y) {}
@@ -51,13 +51,12 @@ struct Vec2
         float rad = angle * DEG2RAD;
         float cosA = cos(rad);
         float sinA = sin(rad);
-        return Vec2(x * cosA - y * sinA, x * sinA + y * cosA);
+        return Vec2(x * cosA - y * sinA, x * sinA + y * cosA).normalize();
     }
-
 };
 
 Vec2 facingDir (Vec2& direction, Vec2& position, float speed, float dt, Vec2& facingdir) {
-    direction = direction.normalize();
+    direction = direction.length() > 0.0f ? direction.normalize() : direction;
     position = position + direction * speed * dt;
     if (direction.length() > 0.0f) {
         facingdir = direction;
@@ -80,8 +79,33 @@ void clampOverlapPosition(float player_SIZE, float enemy_SIZE, Vec2& playerPos, 
     }
 }
 
-void testRotation(Vec2& facingdir, float rotation) { //temporary use
-	facingdir = facingdir.vecRotation(rotation);
+bool enemyTurn(float dt,Vec2 startFacingDir, Vec2& enemyfacingDir, float& enemyElapsed, float enemyTurnDuration, float& enemyAngle, float enemyTotalAngle) {
+    enemyElapsed += dt;
+
+    float t = (enemyTurnDuration > 0.0f) ? (enemyElapsed / enemyTurnDuration) : 1.0f;
+    if (t > 1.0f) t = 1.0f;
+
+    enemyAngle = enemyTotalAngle * t;
+    enemyfacingDir = startFacingDir.vecRotation(enemyAngle);
+
+    if (enemyElapsed >= enemyTurnDuration) {
+        return true;
+    }
+    return false;
+}
+
+bool enemyMove(Vec2& enemyPos, Vec2& enemyfacingDir, float enemySpeed, float dt, float& walkedDistance, float targetDistance) {
+    Vec2 dir = enemyfacingDir.normalize();
+    Vec2 prevPos = enemyPos;
+
+    enemyPos = enemyPos + dir * enemySpeed * dt;
+    walkedDistance += prevPos.distanceTo(enemyPos);
+
+    if (walkedDistance >= targetDistance) {
+        walkedDistance = targetDistance;
+        return true;
+    }
+    return false;
 }
 
 int main()
@@ -127,7 +151,7 @@ int main()
 
 	bool AttackedEnemy = false;
 
-	enum class NotificationTimer {
+	enum class NotifTimer {
 		IDLE,
 		ACTIVE
 	};
@@ -166,14 +190,67 @@ int main()
 		float speed;
 		float health;
 		float Viewingdistance;
+
+		float elapsed = 0.0f;
+		float currentAngle = 0.0f;
 	};
 
-	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 0.0f), 120.0f, 60, 330.0f };
+	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 1.0f), 120.0f, 60, 330.0f };
+
+	struct enemy1Move {
+        enum class enemy1State {
+            IDLE,
+            ACTIVE
+        };
+
+		enum class enemy1MoveState {
+			P,
+            P2,
+            P3,
+            P4
+		};
+
+		enum class enemy1StopState {
+			STOP_P,
+			STOP_P2,
+			STOP_P3
+		};
+	};
+
+    enemy1Move::enemy1State enemy1State = enemy1Move::enemy1State::IDLE;
+	enemy1Move::enemy1MoveState enemy1MoveState = enemy1Move::enemy1MoveState::P;
+
+    float enemy1stopDur = 0.0f;
+
+    float enemy1stopDurP = 1.0f;
+    float enemy1stopDurP2 = 1.0f;
+    float enemy1stopDurP3 = 1.0f;
+    float enemy1stopDurP4 = enemy1stopDur;
+
+	float enemy1targetDistP = 360.0f;
+    float enemy1targetDistP2 = 240.0f;
+    float enemy1targetDistP3 = 240.0f;
+	float enemy1targetDistP4 = 120.0f; //don't know distance yet
+
+	float enemy1totalAngleP = 90.0f;
+    float enemy1totalAngleP2 = 120.0f;
+    float enemy1totalAngleP3 = 45.0f;
+    float enemy1totalAngleP4 = 100.0f; //don't know Angle yet
+
+    float enemy1turnDurP = 1.0f;
+    float enemy1turnDurP2 = 2.0f;
+    float enemy1turnDurP3 = 1.5f;
+    float enemy1turnDurP4 = 1.5f;
+
+    Vec2 enemy1TurnStartDir = enemy1.facingdir;
+    float enemy1walkedDist = 0.0f;
+    bool enemy1HasTurnStartDir = false;
+    static bool enemy1TurnDone = false;
 
 	Red::AttackState ATKState = Red::AttackState::IDLE;
 	Red::DefenseState DEFState = Red::DefenseState::BLOCKING;
 
-    NotificationTimer notificationTimer = NotificationTimer::IDLE;
+    NotifTimer notiTimer = NotifTimer::IDLE;
     GameState state = GameState::WAIT_FOR_START;
 
     while (state == GameState::WAIT_FOR_START && !WindowShouldClose()) {
@@ -217,20 +294,11 @@ int main()
                 dir = dir.normalize();
                 playerPos = playerPos + dir * speedPT * dt;
 
-				if (IsKeyPressed(KEY_Z)) { //temporary use
-					testRotation(enemy1.facingdir, 90);
-				}
-				if (IsKeyPressed(KEY_X)) { //temporary use
-                    testRotation(enemy1.facingdir, -90);
-                }
-
             if (ATKState == Red::AttackState::IDLE) {
 				if (dir.length() > 0.0f) {
 					playerfacingDir = dir;
 				}
 			}
-
-            facingDir(enemy1.direction, enemy1.position, enemy1.speed, dt, enemy1.facingdir);
 
             if (IsKeyPressed(KEY_J) && ATKState == Red::AttackState::IDLE && DTimer >= WindupTime + ActiveTime + RecoveryTime) {
                 ATKState = Red::AttackState::WINDUP;
@@ -279,6 +347,82 @@ int main()
         }
 
         if (IsKeyDown(KEY_Q)) break;
+
+		// enemy1 move logic
+		bool enemy1Turned = false;
+		bool enemy1Moved = false;
+
+		if (enemy1State == enemy1Move::enemy1State::IDLE) {
+			enemy1stopDur += dt;
+			if (enemy1stopDur >= enemy1stopDurP && enemy1MoveState == enemy1Move::enemy1MoveState::P) {
+				enemy1State = enemy1Move::enemy1State::ACTIVE;
+			}
+			else if (enemy1stopDur >= enemy1stopDurP2 && enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
+				enemy1State = enemy1Move::enemy1State::ACTIVE;
+			}
+			else if (enemy1stopDur >= enemy1stopDurP3 && enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
+				enemy1State = enemy1Move::enemy1State::ACTIVE;
+			}
+			else if (enemy1stopDur >= enemy1stopDurP4 && enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
+				enemy1State = enemy1Move::enemy1State::ACTIVE;
+			}
+		}
+
+        if (enemy1State == enemy1Move::enemy1State::ACTIVE) {
+            float targetDist = enemy1targetDistP;
+			float enemy1turnDur = enemy1turnDurP;
+			float enemy1totalAngle = enemy1totalAngleP;
+            enemy1Move::enemy1MoveState nextMoveState = enemy1Move::enemy1MoveState::P2;
+
+            if (enemy1MoveState == enemy1Move::enemy1MoveState::P) {
+                targetDist = enemy1targetDistP;
+                enemy1turnDur = enemy1turnDurP;
+                enemy1totalAngle = enemy1totalAngleP;
+                nextMoveState = enemy1Move::enemy1MoveState::P2;
+            }
+            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
+                targetDist = enemy1targetDistP2;
+				enemy1turnDur = enemy1turnDurP2;
+				enemy1totalAngle = enemy1totalAngleP2;
+                nextMoveState = enemy1Move::enemy1MoveState::P3;
+            }
+            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
+                targetDist = enemy1targetDistP3;
+                enemy1turnDur = enemy1turnDurP3;
+                enemy1totalAngle = enemy1totalAngleP3;
+                nextMoveState = enemy1Move::enemy1MoveState::P4;
+            }
+            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
+                targetDist = enemy1targetDistP4;
+				enemy1turnDur = enemy1turnDurP4;
+				enemy1totalAngle = enemy1totalAngleP4;
+                nextMoveState = enemy1Move::enemy1MoveState::P;
+            }
+
+            if (!enemy1TurnDone) {
+                if (!enemy1HasTurnStartDir) {
+                    enemy1.elapsed = 0.0f;
+                    enemy1TurnStartDir = enemy1.facingdir;
+                    enemy1HasTurnStartDir = true;
+                }
+                if (enemyTurn(dt, enemy1TurnStartDir, enemy1.facingdir, enemy1.elapsed, enemy1turnDur, enemy1.currentAngle, enemy1totalAngle)) {
+                    enemy1TurnDone = true;
+                    enemy1walkedDist = 0.0f;
+                }
+            }
+            else {
+                if (enemyMove(enemy1.position, enemy1.facingdir, enemy1.speed, dt, enemy1walkedDist, targetDist)) {
+                    enemy1TurnDone = false;
+                    enemy1HasTurnStartDir = false;
+                    enemy1walkedDist = 0.0f;
+                    enemy1stopDur = 0.0f;
+                    enemy1State = enemy1Move::enemy1State::IDLE;
+                    enemy1MoveState = nextMoveState;
+                }
+            }
+        }
+        
+        
 
         clampPosition(WORLD_W , WORLD_H , PLAYER_SIZE, WORLD_THICK, playerPos);
         clampPosition(WORLD_W , WORLD_H , ENEMY_SIZE, WORLD_THICK, enemy1.position);
