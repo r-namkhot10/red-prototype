@@ -51,7 +51,7 @@ struct Vec2
         float rad = angle * DEG2RAD;
         float cosA = cos(rad);
         float sinA = sin(rad);
-        return Vec2(x * cosA - y * sinA, x * sinA + y * cosA).normalize();
+        return Vec2(x * cosA - y * sinA, x * sinA + y * cosA);
     }
 };
 
@@ -96,16 +96,40 @@ bool enemyTurn(float dt,Vec2 startFacingDir, Vec2& enemyfacingDir, float& enemyE
 
 bool enemyMove(Vec2& enemyPos, Vec2& enemyfacingDir, float enemySpeed, float dt, float& walkedDistance, float targetDistance) {
     Vec2 dir = enemyfacingDir.normalize();
-    Vec2 prevPos = enemyPos;
+	float remainingdist = targetDistance - walkedDistance;
+	float step = enemySpeed * dt;
+	float realstep = (remainingdist < step) ? remainingdist : step;
 
-    enemyPos = enemyPos + dir * enemySpeed * dt;
-    walkedDistance += prevPos.distanceTo(enemyPos);
+	enemyPos = enemyPos + dir * realstep;
+	walkedDistance += realstep;
 
     if (walkedDistance >= targetDistance) {
         walkedDistance = targetDistance;
         return true;
     }
     return false;
+}
+
+float getSignedAngleToTargetDeg(const Vec2& currentDir, const Vec2& currentPos, const Vec2& targetPos) {
+    Vec2 toTarget = targetPos - currentPos;
+    float dist = toTarget.length();
+
+    if (dist <= 0.0001f) {
+        return 0.0f;
+    }
+
+    Vec2 dirToTarget = toTarget / dist;
+    Vec2 forward = currentDir.normalize();
+
+    float dotVal = forward.dot(dirToTarget);
+    if (dotVal > 1.0f)  dotVal = 1.0f;
+    if (dotVal < -1.0f) dotVal = -1.0f;
+
+    float unsignedAngleDeg = std::acos(dotVal) * RAD2DEG;
+
+    float cross = forward.x * dirToTarget.y - forward.y * dirToTarget.x;
+
+    return (cross < 0.0f) ? -unsignedAngleDeg : unsignedAngleDeg;
 }
 
 int main()
@@ -142,7 +166,7 @@ int main()
 	float ActiveTime = 0.08f;
 	float RecoveryTime = 0.30f;
 	float CancelTimeFrame = 0.3f;
-
+    
 	float speedP_Windup = speedPlayer * 0.3f;
 	float speedP_Active = 0.0f;
 	float speedP_Recovery = speedPlayer * 0.5f;
@@ -207,13 +231,15 @@ int main()
 			P,
             P2,
             P3,
-            P4
+            P4,
+            P5
 		};
 
 		enum class enemy1StopState {
 			STOP_P,
 			STOP_P2,
-			STOP_P3
+			STOP_P3,
+            STOP_P4
 		};
 	};
 
@@ -225,25 +251,30 @@ int main()
     float enemy1stopDurP = 1.0f;
     float enemy1stopDurP2 = 1.0f;
     float enemy1stopDurP3 = 1.0f;
-    float enemy1stopDurP4 = enemy1stopDur;
+	float enemy1stopDurP4 = 1.0f;
 
 	float enemy1targetDistP = 360.0f;
     float enemy1targetDistP2 = 240.0f;
     float enemy1targetDistP3 = 240.0f;
-	float enemy1targetDistP4 = 120.0f; //don't know distance yet
+
+	float turnegreesperSecond = 75.0f;
 
 	float enemy1totalAngleP = 90.0f;
     float enemy1totalAngleP2 = 120.0f;
     float enemy1totalAngleP3 = 45.0f;
-    float enemy1totalAngleP4 = 100.0f; //don't know Angle yet
+    
 
-    float enemy1turnDurP = 1.0f;
-    float enemy1turnDurP2 = 2.0f;
-    float enemy1turnDurP3 = 1.5f;
-    float enemy1turnDurP4 = 1.5f;
+    float enemy1turnDurP = enemy1totalAngleP / turnegreesperSecond;
+    float enemy1turnDurP2 = enemy1totalAngleP2 / turnegreesperSecond;
+    float enemy1turnDurP3 = enemy1totalAngleP3 / turnegreesperSecond;
 
+    Vec2 enemy1StartPos = enemy1.position;
     Vec2 enemy1TurnStartDir = enemy1.facingdir;
+    Vec2 enemy1originStartDir = enemy1.facingdir;
     float enemy1walkedDist = 0.0f;
+    float enemy1activeTurnDur = 0.0f;
+    float enemy1activeTotalAngle = 0.0f;
+    float enemy1activeTargetDist = 0.0f;
     bool enemy1HasTurnStartDir = false;
     static bool enemy1TurnDone = false;
 
@@ -349,9 +380,6 @@ int main()
         if (IsKeyDown(KEY_Q)) break;
 
 		// enemy1 move logic
-		bool enemy1Turned = false;
-		bool enemy1Moved = false;
-
 		if (enemy1State == enemy1Move::enemy1State::IDLE) {
 			enemy1stopDur += dt;
 			if (enemy1stopDur >= enemy1stopDurP && enemy1MoveState == enemy1Move::enemy1MoveState::P) {
@@ -366,37 +394,56 @@ int main()
 			else if (enemy1stopDur >= enemy1stopDurP4 && enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
 				enemy1State = enemy1Move::enemy1State::ACTIVE;
 			}
+            else if (enemy1stopDur >= 0.0f && enemy1MoveState == enemy1Move::enemy1MoveState::P5) {
+                enemy1State = enemy1Move::enemy1State::ACTIVE;
+            }
+
 		}
 
         if (enemy1State == enemy1Move::enemy1State::ACTIVE) {
-            float targetDist = enemy1targetDistP;
-			float enemy1turnDur = enemy1turnDurP;
-			float enemy1totalAngle = enemy1totalAngleP;
             enemy1Move::enemy1MoveState nextMoveState = enemy1Move::enemy1MoveState::P2;
 
             if (enemy1MoveState == enemy1Move::enemy1MoveState::P) {
-                targetDist = enemy1targetDistP;
-                enemy1turnDur = enemy1turnDurP;
-                enemy1totalAngle = enemy1totalAngleP;
+                enemy1activeTargetDist = enemy1targetDistP;
+                enemy1activeTurnDur = enemy1turnDurP;
+                enemy1activeTotalAngle = enemy1totalAngleP;
                 nextMoveState = enemy1Move::enemy1MoveState::P2;
             }
             else if (enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
-                targetDist = enemy1targetDistP2;
-				enemy1turnDur = enemy1turnDurP2;
-				enemy1totalAngle = enemy1totalAngleP2;
+                enemy1activeTargetDist = enemy1targetDistP2;
+				enemy1activeTurnDur = enemy1turnDurP2;
+				enemy1activeTotalAngle = enemy1totalAngleP2;
                 nextMoveState = enemy1Move::enemy1MoveState::P3;
             }
             else if (enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
-                targetDist = enemy1targetDistP3;
-                enemy1turnDur = enemy1turnDurP3;
-                enemy1totalAngle = enemy1totalAngleP3;
+                enemy1activeTargetDist = enemy1targetDistP3;
+                enemy1activeTurnDur = enemy1turnDurP3;
+                enemy1activeTotalAngle = enemy1totalAngleP3;
                 nextMoveState = enemy1Move::enemy1MoveState::P4;
             }
             else if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
-                targetDist = enemy1targetDistP4;
-				enemy1turnDur = enemy1turnDurP4;
-				enemy1totalAngle = enemy1totalAngleP4;
+                nextMoveState = enemy1Move::enemy1MoveState::P5;
+                if (!enemy1TurnDone && !enemy1HasTurnStartDir) {
+                    enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1StartPos);
+                    
+                    float absAngle = std::fabs(enemy1activeTotalAngle);
+                    enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                }
+                if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
+                    enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
+                }
+            }
+            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P5) {
                 nextMoveState = enemy1Move::enemy1MoveState::P;
+                if (!enemy1TurnDone && !enemy1HasTurnStartDir) {
+                    enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1.position + enemy1originStartDir);
+
+                    float absAngle = std::fabs(enemy1activeTotalAngle);
+                    enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                }
+                if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
+                    enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
+                }
             }
 
             if (!enemy1TurnDone) {
@@ -405,24 +452,27 @@ int main()
                     enemy1TurnStartDir = enemy1.facingdir;
                     enemy1HasTurnStartDir = true;
                 }
-                if (enemyTurn(dt, enemy1TurnStartDir, enemy1.facingdir, enemy1.elapsed, enemy1turnDur, enemy1.currentAngle, enemy1totalAngle)) {
+                if (enemyTurn(dt, enemy1TurnStartDir, enemy1.facingdir, enemy1.elapsed, enemy1activeTurnDur, enemy1.currentAngle, enemy1activeTotalAngle)) {
                     enemy1TurnDone = true;
                     enemy1walkedDist = 0.0f;
                 }
             }
+
             else {
-                if (enemyMove(enemy1.position, enemy1.facingdir, enemy1.speed, dt, enemy1walkedDist, targetDist)) {
+                if (enemyMove(enemy1.position, enemy1.facingdir, enemy1.speed, dt, enemy1walkedDist, enemy1activeTargetDist)) {
+					if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
+						enemy1.position = enemy1StartPos;
+					}
                     enemy1TurnDone = false;
                     enemy1HasTurnStartDir = false;
                     enemy1walkedDist = 0.0f;
+                    enemy1activeTargetDist = 0.0f;
                     enemy1stopDur = 0.0f;
                     enemy1State = enemy1Move::enemy1State::IDLE;
                     enemy1MoveState = nextMoveState;
                 }
             }
         }
-        
-        
 
         clampPosition(WORLD_W , WORLD_H , PLAYER_SIZE, WORLD_THICK, playerPos);
         clampPosition(WORLD_W , WORLD_H , ENEMY_SIZE, WORLD_THICK, enemy1.position);
