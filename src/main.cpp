@@ -214,12 +214,13 @@ int main()
 		float speed;
 		float health;
 		float Viewingdistance;
+        float visionHalfAngle;
 
 		float elapsed = 0.0f;
 		float currentAngle = 0.0f;
 	};
 
-	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 1.0f), 120.0f, 60, 330.0f };
+	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 1.0f), 120.0f, 60, 330.0f, 60.0f };
 
 	struct enemy1Move {
         enum class enemy1State {
@@ -379,7 +380,6 @@ int main()
 
         if (IsKeyDown(KEY_Q)) break;
 
-		// enemy1 move logic
 		if (enemy1State == enemy1Move::enemy1State::IDLE) {
 			enemy1stopDur += dt;
 			if (enemy1stopDur >= enemy1stopDurP && enemy1MoveState == enemy1Move::enemy1MoveState::P) {
@@ -481,6 +481,11 @@ int main()
 		    clampOverlapPosition(PLAYER_SIZE, ENEMY_SIZE, playerPos, enemy1.position);
 		}
 
+        bool isPlayerInRange = playerPos.distanceTo(enemy1.position) <= enemy1.Viewingdistance;
+        float angleToPlayer = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, playerPos);
+		bool isPlayerInFrontRange = std::fabs(angleToPlayer) <= enemy1.visionHalfAngle;
+		bool isPlayerInEnemyVision = isPlayerInRange && isPlayerInFrontRange;
+
         Vec2 DirToEnemy = (enemy1.position - playerPos);
 		float distanceToEnemy = DirToEnemy.length() - (ENEMY_SIZE / 2.0f);
 		bool isEnemyInRange = distanceToEnemy <= attackReach;
@@ -496,8 +501,8 @@ int main()
 
 		Vec2 playerEndPos = playerPos + playerfacingDir * PLAYER_SIZE / 2.0f;
 		Vec2 enemy1EndPos = enemy1.position + enemy1.facingdir * ENEMY_SIZE / 2.0f;
-        Vec2 enemy1VisionEndPos = enemy1.position + enemy1.facingdir.vecRotation(60) * enemy1.Viewingdistance;
-        Vec2 enemy1VisionEndPos2 = enemy1.position + enemy1.facingdir.vecRotation(-60) * enemy1.Viewingdistance;
+        Vec2 enemy1VisionEndPos = enemy1.position + enemy1.facingdir.vecRotation(enemy1.visionHalfAngle) * enemy1.Viewingdistance;
+        Vec2 enemy1VisionEndPos2 = enemy1.position + enemy1.facingdir.vecRotation(-enemy1.visionHalfAngle) * enemy1.Viewingdistance;
 
 		float checkVisionDistance = enemy1VisionEndPos.distanceTo(enemy1.position);
 		float checkVisionDistance2 = enemy1VisionEndPos2.distanceTo(enemy1.position);
@@ -523,6 +528,9 @@ int main()
                 DrawText(TextFormat("HP: %.0f", enemy1.health), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
                 DrawText(TextFormat("( %.2f, %.2f )", enemy1.facingdir.x, enemy1.facingdir.y), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 40, 20, BLACK);
                 DrawText(TextFormat("Vision Dist: %.2f, %.2f", checkVisionDistance, checkVisionDistance2), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 60, 20, BLACK);
+				if (isPlayerInEnemyVision) {
+					DrawText(TextFormat("Alert!"), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 80, 20, RED);
+				}
             }
 
             DrawRectangle((int)playerPos.x - PLAYER_SIZE / 2.0f, (int)playerPos.y - PLAYER_SIZE / 2.0f, PLAYER_SIZE, PLAYER_SIZE, RED);
