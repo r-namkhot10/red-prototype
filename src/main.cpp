@@ -215,12 +215,24 @@ int main()
 		float health;
 		float Viewingdistance;
         float visionHalfAngle;
+		float AlertedHalfAngle;
 
+		bool Alerted = false;
+		bool Attacked = false;
 		float elapsed = 0.0f;
 		float currentAngle = 0.0f;
 	};
 
-	Enemy enemy1 = { Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), Vec2(0.0f, 1.0f), Vec2(0.0f, 1.0f), 120.0f, 60, 330.0f, 60.0f };
+	Enemy enemy1 = { 
+        Vec2((WORLD_W / 2.0f) + 120.0f, WORLD_H / 2.0f), 
+        Vec2(0.0f, 1.0f), 
+        Vec2(0.0f, 1.0f), 
+        120.0f, 
+        60, 
+        330.0f, 
+        60.0f,
+        80.0f
+    };
 
 	struct enemy1Move {
         enum class enemy1State {
@@ -380,96 +392,98 @@ int main()
 
         if (IsKeyDown(KEY_Q)) break;
 
-		if (enemy1State == enemy1Move::enemy1State::IDLE) {
-			enemy1stopDur += dt;
-			if (enemy1stopDur >= enemy1stopDurP && enemy1MoveState == enemy1Move::enemy1MoveState::P) {
-				enemy1State = enemy1Move::enemy1State::ACTIVE;
-			}
-			else if (enemy1stopDur >= enemy1stopDurP2 && enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
-				enemy1State = enemy1Move::enemy1State::ACTIVE;
-			}
-			else if (enemy1stopDur >= enemy1stopDurP3 && enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
-				enemy1State = enemy1Move::enemy1State::ACTIVE;
-			}
-			else if (enemy1stopDur >= enemy1stopDurP4 && enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
-				enemy1State = enemy1Move::enemy1State::ACTIVE;
-			}
-            else if (enemy1stopDur >= 0.0f && enemy1MoveState == enemy1Move::enemy1MoveState::P5) {
-                enemy1State = enemy1Move::enemy1State::ACTIVE;
+        if (!enemy1.Alerted) {
+            if (enemy1State == enemy1Move::enemy1State::IDLE) {
+                enemy1stopDur += dt;
+                if (enemy1stopDur >= enemy1stopDurP && enemy1MoveState == enemy1Move::enemy1MoveState::P) {
+                    enemy1State = enemy1Move::enemy1State::ACTIVE;
+                }
+                else if (enemy1stopDur >= enemy1stopDurP2 && enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
+                    enemy1State = enemy1Move::enemy1State::ACTIVE;
+                }
+                else if (enemy1stopDur >= enemy1stopDurP3 && enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
+                    enemy1State = enemy1Move::enemy1State::ACTIVE;
+                }
+                else if (enemy1stopDur >= enemy1stopDurP4 && enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
+                    enemy1State = enemy1Move::enemy1State::ACTIVE;
+                }
+                else if (enemy1stopDur >= 0.0f && enemy1MoveState == enemy1Move::enemy1MoveState::P5) {
+                    enemy1State = enemy1Move::enemy1State::ACTIVE;
+                }
+
             }
 
-		}
+            if (enemy1State == enemy1Move::enemy1State::ACTIVE) {
+                enemy1Move::enemy1MoveState nextMoveState = enemy1Move::enemy1MoveState::P2;
 
-        if (enemy1State == enemy1Move::enemy1State::ACTIVE) {
-            enemy1Move::enemy1MoveState nextMoveState = enemy1Move::enemy1MoveState::P2;
+                if (enemy1MoveState == enemy1Move::enemy1MoveState::P) {
+                    enemy1activeTargetDist = enemy1targetDistP;
+                    enemy1activeTurnDur = enemy1turnDurP;
+                    enemy1activeTotalAngle = enemy1totalAngleP;
+                    nextMoveState = enemy1Move::enemy1MoveState::P2;
+                }
+                else if (enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
+                    enemy1activeTargetDist = enemy1targetDistP2;
+                    enemy1activeTurnDur = enemy1turnDurP2;
+                    enemy1activeTotalAngle = enemy1totalAngleP2;
+                    nextMoveState = enemy1Move::enemy1MoveState::P3;
+                }
+                else if (enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
+                    enemy1activeTargetDist = enemy1targetDistP3;
+                    enemy1activeTurnDur = enemy1turnDurP3;
+                    enemy1activeTotalAngle = enemy1totalAngleP3;
+                    nextMoveState = enemy1Move::enemy1MoveState::P4;
+                }
+                else if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
+                    nextMoveState = enemy1Move::enemy1MoveState::P5;
+                    if (!enemy1TurnDone && !enemy1HasTurnStartDir) {
+                        enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1StartPos);
 
-            if (enemy1MoveState == enemy1Move::enemy1MoveState::P) {
-                enemy1activeTargetDist = enemy1targetDistP;
-                enemy1activeTurnDur = enemy1turnDurP;
-                enemy1activeTotalAngle = enemy1totalAngleP;
-                nextMoveState = enemy1Move::enemy1MoveState::P2;
-            }
-            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P2) {
-                enemy1activeTargetDist = enemy1targetDistP2;
-				enemy1activeTurnDur = enemy1turnDurP2;
-				enemy1activeTotalAngle = enemy1totalAngleP2;
-                nextMoveState = enemy1Move::enemy1MoveState::P3;
-            }
-            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P3) {
-                enemy1activeTargetDist = enemy1targetDistP3;
-                enemy1activeTurnDur = enemy1turnDurP3;
-                enemy1activeTotalAngle = enemy1totalAngleP3;
-                nextMoveState = enemy1Move::enemy1MoveState::P4;
-            }
-            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
-                nextMoveState = enemy1Move::enemy1MoveState::P5;
-                if (!enemy1TurnDone && !enemy1HasTurnStartDir) {
-                    enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1StartPos);
-                    
-                    float absAngle = std::fabs(enemy1activeTotalAngle);
-                    enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                        float absAngle = std::fabs(enemy1activeTotalAngle);
+                        enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                    }
+                    if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
+                        enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
+                    }
                 }
-                if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
-                    enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
-                }
-            }
-            else if (enemy1MoveState == enemy1Move::enemy1MoveState::P5) {
-                nextMoveState = enemy1Move::enemy1MoveState::P;
-                if (!enemy1TurnDone && !enemy1HasTurnStartDir) {
-                    enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1.position + enemy1originStartDir);
+                else if (enemy1MoveState == enemy1Move::enemy1MoveState::P5) {
+                    nextMoveState = enemy1Move::enemy1MoveState::P;
+                    if (!enemy1TurnDone && !enemy1HasTurnStartDir) {
+                        enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1.position + enemy1originStartDir);
 
-                    float absAngle = std::fabs(enemy1activeTotalAngle);
-                    enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                        float absAngle = std::fabs(enemy1activeTotalAngle);
+                        enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                    }
+                    if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
+                        enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
+                    }
                 }
-                if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
-                    enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
-                }
-            }
 
-            if (!enemy1TurnDone) {
-                if (!enemy1HasTurnStartDir) {
-                    enemy1.elapsed = 0.0f;
-                    enemy1TurnStartDir = enemy1.facingdir;
-                    enemy1HasTurnStartDir = true;
+                if (!enemy1TurnDone) {
+                    if (!enemy1HasTurnStartDir) {
+                        enemy1.elapsed = 0.0f;
+                        enemy1TurnStartDir = enemy1.facingdir;
+                        enemy1HasTurnStartDir = true;
+                    }
+                    if (enemyTurn(dt, enemy1TurnStartDir, enemy1.facingdir, enemy1.elapsed, enemy1activeTurnDur, enemy1.currentAngle, enemy1activeTotalAngle)) {
+                        enemy1TurnDone = true;
+                        enemy1walkedDist = 0.0f;
+                    }
                 }
-                if (enemyTurn(dt, enemy1TurnStartDir, enemy1.facingdir, enemy1.elapsed, enemy1activeTurnDur, enemy1.currentAngle, enemy1activeTotalAngle)) {
-                    enemy1TurnDone = true;
-                    enemy1walkedDist = 0.0f;
-                }
-            }
 
-            else {
-                if (enemyMove(enemy1.position, enemy1.facingdir, enemy1.speed, dt, enemy1walkedDist, enemy1activeTargetDist)) {
-					if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
-						enemy1.position = enemy1StartPos;
-					}
-                    enemy1TurnDone = false;
-                    enemy1HasTurnStartDir = false;
-                    enemy1walkedDist = 0.0f;
-                    enemy1activeTargetDist = 0.0f;
-                    enemy1stopDur = 0.0f;
-                    enemy1State = enemy1Move::enemy1State::IDLE;
-                    enemy1MoveState = nextMoveState;
+                else {
+                    if (enemyMove(enemy1.position, enemy1.facingdir, enemy1.speed, dt, enemy1walkedDist, enemy1activeTargetDist)) {
+                        if (enemy1MoveState == enemy1Move::enemy1MoveState::P4) {
+                            enemy1.position = enemy1StartPos;
+                        }
+                        enemy1TurnDone = false;
+                        enemy1HasTurnStartDir = false;
+                        enemy1walkedDist = 0.0f;
+                        enemy1activeTargetDist = 0.0f;
+                        enemy1stopDur = 0.0f;
+                        enemy1State = enemy1Move::enemy1State::IDLE;
+                        enemy1MoveState = nextMoveState;
+                    }
                 }
             }
         }
@@ -481,9 +495,15 @@ int main()
 		    clampOverlapPosition(PLAYER_SIZE, ENEMY_SIZE, playerPos, enemy1.position);
 		}
 
+        float enemy1visionHalfAngle = enemy1.visionHalfAngle;
+        if (enemy1.Alerted) {
+            enemy1visionHalfAngle = enemy1.AlertedHalfAngle;
+        }
+
         bool isPlayerInRange = playerPos.distanceTo(enemy1.position) <= enemy1.Viewingdistance;
         float angleToPlayer = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, playerPos);
-		bool isPlayerInFrontRange = std::fabs(angleToPlayer) <= enemy1.visionHalfAngle;
+		float fabsAngleToPlayer = std::fabs(angleToPlayer);
+        bool isPlayerInFrontRange = fabsAngleToPlayer <= enemy1visionHalfAngle;
 		bool isPlayerInEnemyVision = isPlayerInRange && isPlayerInFrontRange;
 
         Vec2 DirToEnemy = (enemy1.position - playerPos);
@@ -495,14 +515,19 @@ int main()
 		if (ATKState == Red::AttackState::ACTIVE && isEnemyAttackable && !AttackedEnemy && enemy1.health > 0) {
 			enemy1.health -= attackDamage;
 			AttackedEnemy = true;
+			enemy1.Attacked = true;
+		}
+
+		if (enemy1.health > 0 && (enemy1.Attacked || isPlayerInEnemyVision)) {
+			enemy1.Alerted = true;
 		}
 
         camera.target = Vector2{ playerPos.x, playerPos.y };
 
 		Vec2 playerEndPos = playerPos + playerfacingDir * PLAYER_SIZE / 2.0f;
 		Vec2 enemy1EndPos = enemy1.position + enemy1.facingdir * ENEMY_SIZE / 2.0f;
-        Vec2 enemy1VisionEndPos = enemy1.position + enemy1.facingdir.vecRotation(enemy1.visionHalfAngle) * enemy1.Viewingdistance;
-        Vec2 enemy1VisionEndPos2 = enemy1.position + enemy1.facingdir.vecRotation(-enemy1.visionHalfAngle) * enemy1.Viewingdistance;
+        Vec2 enemy1VisionEndPos = enemy1.position + enemy1.facingdir.vecRotation(enemy1visionHalfAngle) * enemy1.Viewingdistance;
+        Vec2 enemy1VisionEndPos2 = enemy1.position + enemy1.facingdir.vecRotation(-enemy1visionHalfAngle) * enemy1.Viewingdistance;
 
 		float checkVisionDistance = enemy1VisionEndPos.distanceTo(enemy1.position);
 		float checkVisionDistance2 = enemy1VisionEndPos2.distanceTo(enemy1.position);
@@ -521,15 +546,27 @@ int main()
 
             if (enemy1.health > 0) {
                 DrawRectangle((int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f, ENEMY_SIZE, ENEMY_SIZE, EnemyColor);
+
                 DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1VisionEndPos.x, enemy1VisionEndPos.y }, (ENEMY_SIZE / 30.0f), GRAY);
 				DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1VisionEndPos2.x, enemy1VisionEndPos2.y }, (ENEMY_SIZE / 30.0f), GRAY);
+
 				DrawLineEx(Vector2{ enemy1.position.x, enemy1.position.y }, Vector2{ enemy1EndPos.x, enemy1EndPos.y }, (ENEMY_SIZE / 10.0f), BLACK);
 
                 DrawText(TextFormat("HP: %.0f", enemy1.health), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 20, 20, BLACK);
                 DrawText(TextFormat("( %.2f, %.2f )", enemy1.facingdir.x, enemy1.facingdir.y), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 40, 20, BLACK);
                 DrawText(TextFormat("Vision Dist: %.2f, %.2f", checkVisionDistance, checkVisionDistance2), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 60, 20, BLACK);
-				if (isPlayerInEnemyVision) {
-					DrawText(TextFormat("Alert!"), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 80, 20, RED);
+
+				if (enemy1.Alerted) {
+					DrawText(TextFormat("Alerted"), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 80, 20, RED);
+                    if (isPlayerInEnemyVision && enemy1.Attacked) {
+                        DrawText(TextFormat("Seeing & Attacked"), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 100, 20, ORANGE);
+                    }
+                    else if (isPlayerInEnemyVision) {
+                        DrawText(TextFormat("Seeing"), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 100, 20, ORANGE);
+                    }
+                    else if (enemy1.Attacked) {
+                        DrawText(TextFormat("Attacked"), (int)enemy1.position.x - ENEMY_SIZE / 2.0f, (int)enemy1.position.y - ENEMY_SIZE / 2.0f - 100, 20, ORANGE);
+                    }
 				}
             }
 
