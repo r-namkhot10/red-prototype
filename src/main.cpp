@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <algorithm>
 #include "raylib.h"
 #include "resource_dir.h"
 
@@ -130,6 +131,14 @@ float getSignedAngleToTargetDeg(const Vec2& currentDir, const Vec2& currentPos, 
     float cross = forward.x * dirToTarget.y - forward.y * dirToTarget.x;
 
     return (cross < 0.0f) ? -unsignedAngleDeg : unsignedAngleDeg;
+}
+
+void turnTowardTarget(Vec2& currentDir, const Vec2& currentPos, const Vec2& targetPos, float turndegrees, float dt) {
+    float angleToTarget = getSignedAngleToTargetDeg(currentDir, currentPos, targetPos);
+    float maxTurnThisFrame = turndegrees * dt;
+    float clampedAngle = std::clamp(angleToTarget, -maxTurnThisFrame, maxTurnThisFrame);
+    Vec2 newDir = currentDir.vecRotation(clampedAngle);
+    currentDir = newDir.normalize();
 }
 
 int main()
@@ -270,16 +279,16 @@ int main()
     float enemy1targetDistP2 = 240.0f;
     float enemy1targetDistP3 = 240.0f;
 
-	float turnegreesperSecond = 75.0f;
+	float turnDegreesPerSecond = 75.0f;
 
 	float enemy1totalAngleP = 90.0f;
     float enemy1totalAngleP2 = 120.0f;
     float enemy1totalAngleP3 = 45.0f;
     
 
-    float enemy1turnDurP = enemy1totalAngleP / turnegreesperSecond;
-    float enemy1turnDurP2 = enemy1totalAngleP2 / turnegreesperSecond;
-    float enemy1turnDurP3 = enemy1totalAngleP3 / turnegreesperSecond;
+    float enemy1turnDurP = enemy1totalAngleP / turnDegreesPerSecond;
+    float enemy1turnDurP2 = enemy1totalAngleP2 / turnDegreesPerSecond;
+    float enemy1turnDurP3 = enemy1totalAngleP3 / turnDegreesPerSecond;
 
     Vec2 enemy1StartPos = enemy1.position;
     Vec2 enemy1TurnStartDir = enemy1.facingdir;
@@ -440,7 +449,7 @@ int main()
                         enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1StartPos);
 
                         float absAngle = std::fabs(enemy1activeTotalAngle);
-                        enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                        enemy1activeTurnDur = (turnDegreesPerSecond > 0.0f) ? (absAngle / turnDegreesPerSecond) : 0.0f;
                     }
                     if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
                         enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
@@ -452,7 +461,7 @@ int main()
                         enemy1activeTotalAngle = getSignedAngleToTargetDeg(enemy1.facingdir, enemy1.position, enemy1.position + enemy1originStartDir);
 
                         float absAngle = std::fabs(enemy1activeTotalAngle);
-                        enemy1activeTurnDur = (turnegreesperSecond > 0.0f) ? (absAngle / turnegreesperSecond) : 0.0f;
+                        enemy1activeTurnDur = (turnDegreesPerSecond > 0.0f) ? (absAngle / turnDegreesPerSecond) : 0.0f;
                     }
                     if (enemy1TurnDone && enemy1walkedDist == 0.0f) {
                         enemy1activeTargetDist = enemy1.position.distanceTo(enemy1StartPos);
@@ -486,6 +495,10 @@ int main()
                     }
                 }
             }
+        }
+
+		else {
+            turnTowardTarget(enemy1.facingdir, enemy1.position, playerPos, turnDegreesPerSecond, dt);
         }
 
         clampPosition(WORLD_W , WORLD_H , PLAYER_SIZE, WORLD_THICK, playerPos);
